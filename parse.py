@@ -20,6 +20,18 @@ def checker(cls):
     return cls
 
 
+def all_keys_with_directions(ctx):
+    predistributed = ctx.predistributed()
+    if predistributed is not None:
+        for line in predistributed.preline():
+            for key in line.key():
+                yield line.direction().getText(), key.getText()
+    for line in ctx.body().bodyline():
+        for token in line.token():
+            if token.key() is not None:
+                yield line.direction().getText(), token.key().getText()
+
+
 @checker
 class SpecPrinter(noisyListener):
     def exitSpec(self, ctx):
@@ -37,22 +49,10 @@ class SpecPrinter(noisyListener):
 
 @checker
 class KeysSentAtMostOnce(noisyListener):
-    @staticmethod
-    def all_keys_with_directions(ctx):
-        predistributed = ctx.predistributed()
-        if predistributed is not None:
-            for line in predistributed.preline():
-                for key in line.key():
-                    yield line.direction().getText(), key.getText()
-        for line in ctx.body().bodyline():
-            for token in line.token():
-                if token.key() is not None:
-                    yield line.direction().getText(), token.key().getText()
-
     def exitSpec(self, ctx):
         name = ctx.name().subname().getText()
         seen = collections.defaultdict(collections.Counter)
-        for direction, key in self.all_keys_with_directions(ctx):
+        for direction, key in all_keys_with_directions(ctx):
             seen[direction].update(key)
 
         for direction, counts in seen.items():
@@ -61,7 +61,7 @@ class KeysSentAtMostOnce(noisyListener):
 
 
 @checker
-class PredistributedStaticsAreArguments(noisyListener):
+class PredistributedKeysAreArguments(noisyListener):
     def exitSpec(self, ctx):
         args = ctx.name().args()
         predistributed = ctx.predistributed()
@@ -76,25 +76,43 @@ class PredistributedStaticsAreArguments(noisyListener):
                 {key.getText() for key in line.key()},
             )
 
-        # if no 's' keys were sent then we're all good
-        if not any('s' in prekeys[d] for d in directions):
-            return
-
         # argkeys = the set of keys in the argument list
         argkeys = {d: set() for d in directions}
-        for arg in args.arg():
-            # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
-            # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
-            direction = '<-' if arg.getTokens(
-                noisyParser.RESPONDER,
-            ) else '->'
-            argkeys[direction].add(arg.key().getText())
+        if args is not None and args.arg() is not None:
+            for arg in args.arg():
+                # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
+                # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
+                direction = '<-' if arg.getTokens(
+                    noisyParser.RESPONDER,
+                ) else '->'
+                argkeys[direction].add(arg.key().getText())
 
         for d in directions:
-            if 's' in prekeys[d]:
-                assert 's' in argkeys[d], \
-                    f"Key 's' was sent in the predistribution phase but not registered as an argument."
+            for key in prekeys[d]:
+                assert key in argkeys[d], \
+                    f'Key {key} was sent in the predistribution phase but not registered as an argument.'
 
+
+@checker
+class AllStaticsAreArguments(noisyListener):
+    def exitSpec(self, ctx):
+        args = ctx.name().args()
+        statics = {d: k for d, k in all_keys_with_directions(ctx) if k == 's'}
+
+        # argkeys = the set of keys in the argument list
+        argkeys = {d: set() for d in '<- ->'.split()}
+        if args is not None and args.arg() is not None:
+            for arg in args.arg():
+                # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
+                # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
+                direction = '<-' if arg.getTokens(
+                    noisyParser.RESPONDER,
+                ) else '->'
+                argkeys[direction].add(arg.key().getText())
+
+        for d in statics:
+            assert 's' in argkeys[d], \
+                f'Static key was sent {d} but not registered as an argument.'
 
 # @checker
 # class EphemeralsAreAlwaysUsed(noisyListener):
