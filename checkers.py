@@ -1,15 +1,11 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-from noisyLexer import noisyLexer
-from noisyParser import noisyParser
+from utils import all_keys_with_directions, \
+    all_argkeys
 from noisyListener import noisyListener
-
-import antlr4
-import click
 import collections
-import itertools
 import logging
+
+__all__ = ['CHECKERS']
 
 
 CHECKERS = []
@@ -18,32 +14,6 @@ CHECKERS = []
 def checker(cls):
     CHECKERS.append(cls)
     return cls
-
-
-def all_keys_with_directions(ctx):
-    predistributed = ctx.predistributed()
-    if predistributed is not None:
-        for line in predistributed.preline():
-            for key in line.key():
-                yield line.direction().getText(), key.getText()
-    for line in ctx.body().bodyline():
-        for token in line.token():
-            if token.key() is not None:
-                yield line.direction().getText(), token.key().getText()
-
-
-def all_argkeys(args):
-    # argkeys = the set of keys in the argument list
-    argkeys = {d: set() for d in '<- ->'.split()}
-    if args is not None and args.arg() is not None:
-        for arg in args.arg():
-            # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
-            # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
-            direction = '<-' if arg.getTokens(
-                noisyParser.RESPONDER,
-            ) else '->'
-            argkeys[direction].add(arg.key().getText())
-    return argkeys
 
 
 @checker
@@ -136,35 +106,3 @@ class EphemeralsAreAlwaysUsed(noisyListener):
                     danger_remote_public_keys[direction].remove(remote_key)
                 if local_key != 'e':
                     danger_remote_public_keys[direction].add(remote_key)
-
-
-def parse(f):
-    lexer = noisyLexer(antlr4.FileStream(f))
-    parser = noisyParser(antlr4.CommonTokenStream(lexer))
-    parser._errHandler = antlr4.error.ErrorStrategy.BailErrorStrategy()
-    tree = parser.spec()
-
-    walker = antlr4.ParseTreeWalker()
-    for checker in CHECKERS:
-        logging.info(f'Running checker {checker.__name__}')
-        walker.walk(checker(), tree)
-
-    return tree
-
-
-@click.command()
-@click.argument('filenames', nargs=-1)
-def main(filenames):
-    logging.basicConfig(level=logging.INFO)
-
-    for f in filenames:
-        logging.info(f'Reading {f}')
-        try:
-            parse(f)
-        except AssertionError as e:
-            logging.exception(e)
-            continue
-
-
-if __name__ == '__main__':
-    main()
