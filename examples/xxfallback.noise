@@ -1,0 +1,5 @@
+Noise_XXfallback(s, rs, re):
+   <- e
+   ...
+   -> e, ee, s, se
+   <- s, es

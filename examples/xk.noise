@@ -1,0 +1,6 @@
+Noise_XK(s, rs):
+   <- s
+   ...
+   -> e, es
+   <- e, ee
+   -> s, se

@@ -1,0 +1,5 @@
+Noise_NK(rs):
+   <- s
+   ...
+   -> e, es
+   <- e, ee

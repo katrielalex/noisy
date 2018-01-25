@@ -1,0 +1,5 @@
+Noise_KX(s, rs):
+   -> s
+   ...
+   -> e
+   <- e, ee, se, s, es

@@ -1,0 +1,4 @@
+Noise_X(s, rs):
+   <- s
+   ...
+   -> e, es, s, ss

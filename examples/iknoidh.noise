@@ -1,0 +1,5 @@
+Noise_IKnoidh(s, rs):
+   <- s
+   ...
+   -> e, s, es, ss
+   <- e, ee, se
