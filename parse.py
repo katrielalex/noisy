@@ -27,7 +27,7 @@ class SpecPrinter(noisyListener):
         predistributed = ctx.predistributed()
         if predistributed is not None:
             logging.debug(f'Spec {name}: predistributed keys are around')
-        lines = ctx.body().line()
+        lines = ctx.body().bodyline()
         logging.debug(f'Spec {name}: {len(lines)} lines')
         for i, line in enumerate(lines):
             # import ipdb; ipdb.set_trace()
@@ -38,21 +38,22 @@ class SpecPrinter(noisyListener):
 @checker
 class KeysSentAtMostOnce(noisyListener):
     @staticmethod
-    def all_lines(ctx):
+    def all_keys_with_directions(ctx):
         predistributed = ctx.predistributed()
         if predistributed is not None:
-            yield from predistributed.line()
-        yield from ctx.body().line()
+            for line in predistributed.preline():
+                for key in line.key():
+                    yield line.direction().getText(), key.getText()
+        for line in ctx.body().bodyline():
+            for token in line.token():
+                if token.key() is not None:
+                    yield line.direction().getText(), token.key().getText()
 
     def exitSpec(self, ctx):
         name = ctx.name().subname().getText()
         seen = collections.defaultdict(collections.Counter)
-        for line in self.all_lines(ctx):
-            direction = line.direction().getText()
-            for token in line.token():
-                key = token.key()
-                if key is not None:
-                    seen[direction].update(key.getText())
+        for direction, key in self.all_keys_with_directions(ctx):
+            seen[direction].update(key)
 
         for direction, counts in seen.items():
             for key, count in counts.items():
@@ -70,9 +71,9 @@ class PredistributedStaticsAreArguments(noisyListener):
 
         # prekeys = the set of keys that were transmitted before '...'
         prekeys = {d: set() for d in directions}
-        for line in predistributed.line():
+        for line in predistributed.preline():
             prekeys[line.direction().getText()].update(
-                {token.key().getText() for token in line.token()},
+                {key.getText() for key in line.key()},
             )
 
         # if no 's' keys were sent then we're all good
@@ -93,6 +94,11 @@ class PredistributedStaticsAreArguments(noisyListener):
             if 's' in prekeys[d]:
                 assert 's' in argkeys[d], \
                     f"Key 's' was sent in the predistribution phase but not registered as an argument."
+
+
+# @checker
+# class EphemeralsAreAlwaysUsed(noisyListener):
+#     def exitSpec(self, ctx):
 
 
 def parse(f):

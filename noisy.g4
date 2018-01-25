@@ -14,12 +14,14 @@ arg: RESPONDER? key;
 // e.g. <- s
 //      ...
 predistributed:
-    (line EOL)+
+    preline EOL
+    (preline EOL)?
     (WS?) '...' (WS?) EOL;
+preline: WS? direction WS? key (SEP key)*;
 
 // e.g. <- s, ss, e, se
-body: (line EOL)+;
-line: WS? direction WS? token (SEP token)*;
+body: (bodyline EOL)+;
+bodyline: WS? direction WS? token (SEP token)*;
 token: key | operation;
 
 key: 'e' | 's';
