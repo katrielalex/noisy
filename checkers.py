@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from utils import all_keys_with_directions, \
+    all_ops_with_directions, \
     all_argkeys
 from noisyListener import noisyListener
 import collections
@@ -121,3 +122,9 @@ class DirectionsAreCorrectlyAlternating(noisyListener):
             assert line.direction().getText() == direction, \
                 'Your handshake directions should alternate in the right order.'
             direction = flop[direction]
+
+
+# TODO(katriel) check that all keys are known before using them
+# TODO(katriel) are you sure this is the right way not 1-this?
+# x = {d: op[directions.index(d)] for d, op in all_ops_with_directions(ctx) if op[directions.index(d)] == 's'}
+# import ipdb; ipdb.set_trace()
