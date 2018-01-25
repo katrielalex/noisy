@@ -32,6 +32,20 @@ def all_keys_with_directions(ctx):
                 yield line.direction().getText(), token.key().getText()
 
 
+def all_argkeys(args):
+    # argkeys = the set of keys in the argument list
+    argkeys = {d: set() for d in '<- ->'.split()}
+    if args is not None and args.arg() is not None:
+        for arg in args.arg():
+            # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
+            # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
+            direction = '<-' if arg.getTokens(
+                noisyParser.RESPONDER,
+            ) else '->'
+            argkeys[direction].add(arg.key().getText())
+    return argkeys
+
+
 @checker
 class SpecPrinter(noisyListener):
     def exitSpec(self, ctx):
@@ -63,7 +77,6 @@ class KeysSentAtMostOnce(noisyListener):
 @checker
 class PredistributedKeysAreArguments(noisyListener):
     def exitSpec(self, ctx):
-        args = ctx.name().args()
         predistributed = ctx.predistributed()
         directions = '<- ->'.split()
         if predistributed is None:
@@ -76,16 +89,8 @@ class PredistributedKeysAreArguments(noisyListener):
                 {key.getText() for key in line.key()},
             )
 
-        # argkeys = the set of keys in the argument list
-        argkeys = {d: set() for d in directions}
-        if args is not None and args.arg() is not None:
-            for arg in args.arg():
-                # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
-                # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
-                direction = '<-' if arg.getTokens(
-                    noisyParser.RESPONDER,
-                ) else '->'
-                argkeys[direction].add(arg.key().getText())
+        # argkeys = the set of keys registered in arguments
+        argkeys = all_argkeys(ctx.name().args())
 
         for d in directions:
             for key in prekeys[d]:
@@ -96,27 +101,41 @@ class PredistributedKeysAreArguments(noisyListener):
 @checker
 class AllStaticsAreArguments(noisyListener):
     def exitSpec(self, ctx):
-        args = ctx.name().args()
         statics = {d: k for d, k in all_keys_with_directions(ctx) if k == 's'}
-
-        # argkeys = the set of keys in the argument list
-        argkeys = {d: set() for d in '<- ->'.split()}
-        if args is not None and args.arg() is not None:
-            for arg in args.arg():
-                # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
-                # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
-                direction = '<-' if arg.getTokens(
-                    noisyParser.RESPONDER,
-                ) else '->'
-                argkeys[direction].add(arg.key().getText())
+        argkeys = all_argkeys(ctx.name().args())
 
         for d in statics:
             assert 's' in argkeys[d], \
-                f'Static key was sent {d} but not registered as an argument.'
+                f'Static key was sent {d:} but not registered as an argument.'
 
-# @checker
-# class EphemeralsAreAlwaysUsed(noisyListener):
-#     def exitSpec(self, ctx):
+
+# TODO(katriel) check that the handshake messages alternate direction starting with ->
+# UNLESS there is a pre-message <- containing e, in which case the handshake messages should
+# alternate direction starting with <-
+
+# TODO(katriel) check that all ephemeral keys are used before sending anything else
+
+@checker
+class EphemeralsAreAlwaysUsed(noisyListener):
+    def exitSpec(self, ctx):
+        directions = '-> <-'.split()
+        danger_remote_public_keys = {d: set() for d in directions}
+        for line in ctx.body().bodyline():
+            direction = line.direction().getText()
+            for token in line.token():
+                operation = token.operation()
+                if operation is None:
+                    assert not danger_remote_public_keys[direction], \
+                        "You're sending a key but you haven't used an ephemeral " \
+                        f'with {danger_remote_public_keys[direction]} yet!'
+                    continue
+                operation = operation.getText()
+                local_key = operation[directions.index(direction)]
+                remote_key = operation[1 - directions.index(direction)]
+                if local_key == 'e' and remote_key in danger_remote_public_keys[direction]:
+                    danger_remote_public_keys[direction].remove(remote_key)
+                if local_key != 'e':
+                    danger_remote_public_keys[direction].add(remote_key)
 
 
 def parse(f):
