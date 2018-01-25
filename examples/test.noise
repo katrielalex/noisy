@@ -1,0 +1,4 @@
+Noise_TEST():
+   -> e, s
+   <- s
+   <- e, s

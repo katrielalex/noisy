@@ -1,23 +1,36 @@
 grammar noisy;
 options { language = Python3; }
 
-spec: name ':\n'
-      line+;
+spec: name
+      predistributed?
+      body;
 
-name: 'Noise_' subname '()';
-subname: UPPER+;
+// e.g. Noise_FOO(bar, baz)
+name: 'Noise_' subname '(' args? '):' WS? EOL;
+subname: (UPPER | LOWER)+;
+args: arg (SEP arg)?;
+arg: 'r'? key;
 
-line: WS? direction (token sep)? token EOL;
-sep: ',' WS?;
+// e.g. <- s
+//      ...
+predistributed:
+    (line EOL)+
+    (WS?) '...' (WS?) EOL;
+
+// e.g. <- s, ss, e, se
+body: (line EOL)+;
+line: WS? direction WS? token (SEP token)*;
 token: key | operation;
 
-key: 'e';
+key: 'e' | 's';
 operation: key key;
 
 direction: LEFTWARDS | RIGHTWARDS;
 
+SEP: ',' WS?;
 LEFTWARDS: '<-';
 RIGHTWARDS: '->';
 UPPER: ('A'..'Z');
+LOWER: ('a'..'z');
 EOL: '\n';
 WS: [ \t\r]+ -> skip; // skip all whitespace
