@@ -60,36 +60,39 @@ class KeysSentAtMostOnce(noisyListener):
 
 
 @checker
-class PredistributedEphemeralsAreArguments(noisyListener):
+class PredistributedStaticsAreArguments(noisyListener):
     def exitSpec(self, ctx):
         args = ctx.name().args()
         predistributed = ctx.predistributed()
+        directions = '<- ->'.split()
         if predistributed is None:
-            pass
-            # assert args is None, \
-            #     f"no keys were predistributed but {len(args.arg())} were specified as args"
-        else:
-            # assert (args is not None) and (args.arg() is not None), \
-            #     f"{len(predistributed.line())} keys were predistributed but not specified in the args"
+            return
 
-            prekeys = {'->': set(), '<-': set()}
-            argkeys = {'->': set(), '<-': set()}
-            for line in predistributed.line():
-                prekeys[line.direction().getText()].update(
-                    {token.key().getText() for token in line.token()},
-                )
-            for arg in args.arg():
-                # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
-                # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
-                direction = '<-' if arg.getTokens(
-                    noisyParser.RESPONDER,
-                ) else '->'
-                argkeys[direction].add(arg.key().getText())
+        # prekeys = the set of keys that were transmitted before '...'
+        prekeys = {d: set() for d in directions}
+        for line in predistributed.line():
+            prekeys[line.direction().getText()].update(
+                {token.key().getText() for token in line.token()},
+            )
 
-            for d in '<- ->'.split():
-                if 'e' in prekeys[d]:
-                    assert 'e' in argkeys[d], \
-                        f"Key 'e' was sent in the predistribution phase but not registered as an argument."
+        # if no 's' keys were sent then we're all good
+        if not any('s' in prekeys[d] for d in directions):
+            return
+
+        # argkeys = the set of keys in the argument list
+        argkeys = {d: set() for d in directions}
+        for arg in args.arg():
+            # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
+            # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
+            direction = '<-' if arg.getTokens(
+                noisyParser.RESPONDER,
+            ) else '->'
+            argkeys[direction].add(arg.key().getText())
+
+        for d in directions:
+            if 's' in prekeys[d]:
+                assert 's' in argkeys[d], \
+                    f"Key 's' was sent in the predistribution phase but not registered as an argument."
 
 
 def parse(f):
