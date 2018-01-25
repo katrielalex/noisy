@@ -19,7 +19,7 @@ def parse(f):
 
     walker = antlr4.ParseTreeWalker()
     for checker in CHECKERS:
-        logging.info(f'Running checker {checker.__name__}')
+        logging.debug(f'Running checker {checker.__name__}')
         try:
             walker.walk(checker(), tree)
         except AssertionError as e:

@@ -9,6 +9,7 @@ __all__ = ['CHECKERS']
 
 
 CHECKERS = []
+directions = '-> <-'.split()
 
 
 def checker(cls):
@@ -48,7 +49,6 @@ class KeysSentAtMostOnce(noisyListener):
 class PredistributedKeysAreArguments(noisyListener):
     def exitSpec(self, ctx):
         predistributed = ctx.predistributed()
-        directions = '<- ->'.split()
         if predistributed is None:
             return
 
@@ -79,16 +79,9 @@ class AllStaticsAreArguments(noisyListener):
                 f'Static key was sent {d:} but not registered as an argument.'
 
 
-# TODO(katriel) check that the handshake messages alternate direction starting with ->
-# UNLESS there is a pre-message <- containing e, in which case the handshake messages should
-# alternate direction starting with <-
-
-# TODO(katriel) check that all ephemeral keys are used before sending anything else
-
 @checker
 class EphemeralsAreAlwaysUsed(noisyListener):
     def exitSpec(self, ctx):
-        directions = '-> <-'.split()
         danger_remote_public_keys = {d: set() for d in directions}
         for line in ctx.body().bodyline():
             direction = line.direction().getText()
@@ -106,3 +99,25 @@ class EphemeralsAreAlwaysUsed(noisyListener):
                     danger_remote_public_keys[direction].remove(remote_key)
                 if local_key != 'e':
                     danger_remote_public_keys[direction].add(remote_key)
+
+
+@checker
+class DirectionsAreCorrectlyAlternating(noisyListener):
+    def exitSpec(self, ctx):
+        flop = dict(zip(directions, reversed(directions)))
+
+        fallback = False
+        predistributed = ctx.predistributed()
+        if predistributed is not None:
+            lines = predistributed.preline()
+            fallback = 'e' in {k.getText() for k in lines[0].key()}
+            if len(lines) > 1:  # grammar says that it must be 2 then
+                assert(len(lines) == 2)
+                d1, d2 = [l.direction().getText() for l in lines]
+                assert d1 == flop[d2] == '->'
+
+        direction = '<-' if fallback else '->'
+        for line in ctx.body().bodyline():
+            assert line.direction().getText() == direction, \
+                'Your handshake directions should alternate in the right order.'
+            direction = flop[direction]
