@@ -59,6 +59,39 @@ class KeysSentAtMostOnce(noisyListener):
                 assert count == 1, f'Key {key} sent {count} times as A {direction} B in spec {name}'
 
 
+@checker
+class PredistributedEphemeralsAreArguments(noisyListener):
+    def exitSpec(self, ctx):
+        args = ctx.name().args()
+        predistributed = ctx.predistributed()
+        if predistributed is None:
+            pass
+            # assert args is None, \
+            #     f"no keys were predistributed but {len(args.arg())} were specified as args"
+        else:
+            # assert (args is not None) and (args.arg() is not None), \
+            #     f"{len(predistributed.line())} keys were predistributed but not specified in the args"
+
+            prekeys = {'->': set(), '<-': set()}
+            argkeys = {'->': set(), '<-': set()}
+            for line in predistributed.line():
+                prekeys[line.direction().getText()].update(
+                    {token.key().getText() for token in line.token()},
+                )
+            for arg in args.arg():
+                # getTokens(RESPONDER) is a non-empty list if arg matched a RESPONDER token
+                # i.e. arg contained an 'r' such as re or rs as opposed to just r or s
+                direction = '<-' if arg.getTokens(
+                    noisyParser.RESPONDER,
+                ) else '->'
+                argkeys[direction].add(arg.key().getText())
+
+            for d in '<- ->'.split():
+                if 'e' in prekeys[d]:
+                    assert 'e' in argkeys[d], \
+                        f"Key 'e' was sent in the predistribution phase but not registered as an argument."
+
+
 def parse(f):
     lexer = noisyLexer(antlr4.FileStream(f))
     parser = noisyParser(antlr4.CommonTokenStream(lexer))
@@ -76,11 +109,15 @@ def parse(f):
 @click.command()
 @click.argument('filenames', nargs=-1)
 def main(filenames):
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     for f in filenames:
         logging.info(f'Reading {f}')
-        parse(f)
+        try:
+            parse(f)
+        except AssertionError as e:
+            logging.exception(e)
+            continue
 
 
 if __name__ == '__main__':

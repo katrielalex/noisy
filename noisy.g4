@@ -8,8 +8,8 @@ spec: name
 // e.g. Noise_FOO(bar, baz)
 name: 'Noise_' subname '(' args? '):' WS? EOL;
 subname: (UPPER | LOWER)+;
-args: arg (SEP arg)?;
-arg: 'r'? key;
+args: arg (SEP arg)*;
+arg: RESPONDER? key;
 
 // e.g. <- s
 //      ...
@@ -27,6 +27,7 @@ operation: key key;
 
 direction: LEFTWARDS | RIGHTWARDS;
 
+RESPONDER: 'r';
 SEP: ',' WS?;
 LEFTWARDS: '<-';
 RIGHTWARDS: '->';
