@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from utils import all_keys_with_directions, \
-    all_ops_with_directions, \
+from .utils import all_keys_with_directions, \
     all_argkeys
-from noisyListener import noisyListener
+from .noisyListener import noisyListener
 import collections
 import logging
 

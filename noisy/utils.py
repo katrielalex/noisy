@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from noisyParser import noisyParser
+from .noisyParser import noisyParser
 
 
 class TokenType:

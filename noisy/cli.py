@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from checkers import CHECKERS
-from noisyLexer import noisyLexer
-from noisyParser import noisyParser
-from noisyListener import noisyListener
+from .checkers import CHECKERS
+from .noisyLexer import noisyLexer
+from .noisyParser import noisyParser
 
 import antlr4
 import click
