@@ -30,7 +30,7 @@ setup(
     ],
     license='GNU General Public License v3',
     zip_safe=False,
-    keywords='marmoscet',
+    keywords='noisy',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
